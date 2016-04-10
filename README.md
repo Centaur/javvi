@@ -1,6 +1,12 @@
 # javvi
 Just Another Vue Validation Idea
 
+## Install
+
+`npm install --save javvi`
+
+## Introduction
+
 It is flexible, unobtrusive, lightweight. No need for a `form`, no need for submit buttons, no scoping tag.
 
 It is as simple as just 3 mixins:
