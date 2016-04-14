@@ -31,8 +31,11 @@ let Validatable = {
       this.validateResult = {valid: true};
     }
   },
-  attached() {
+  created() {
     this.$dispatch('register-validation');
+  },
+  beforeDestroy(){
+    this.$dispatch('unregister-validation')
   }
 };
 
@@ -54,6 +57,9 @@ let ValidationContainer = {
   events: {
     'register-validation': function () {
       this.validationCount += 1;
+    },
+    'unregister-validation': function () {
+      this.validationCount -= 1;
     },
     'validate-result': function (result, resolve, reject) {
       if (!result.valid) {
