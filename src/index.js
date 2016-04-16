@@ -2,6 +2,10 @@ let Validatable = {
   props: {
     validate: {
       type: Array
+    },
+    validatePath: {
+      type: String,
+      default: 'model'
     }
   },
   data() {
@@ -14,7 +18,8 @@ let Validatable = {
   },
   events: {
     validate(resolve, reject) {
-      let firstInvalidValidator = this.validate.find(validator => validator.pred(this.model));
+      let toBeValidate = this.$get(this.validatePath)
+      let firstInvalidValidator = this.validate.find(validator => validator.pred(toBeValidate));
       if (firstInvalidValidator) {
         this.validateResult = {
           valid: false,
@@ -26,12 +31,8 @@ let Validatable = {
       this.$dispatch('validate-result', this.validateResult, resolve, reject);
     }
   },
-  watch: {
-    model(newVal, oldVal) {
-      this.validateResult = {valid: true};
-    }
-  },
   created() {
+    this.$watch(this.validatePath, (newVal, oldVal) => this.validateResult = {valid: true})
     this.$dispatch('register-validation');
   },
   beforeDestroy(){
