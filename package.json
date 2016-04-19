@@ -1,6 +1,6 @@
 {
   "name": "javvi",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "Just Another Vue Validation Idea",
   "main": "lib/index.js",
   "scripts": {

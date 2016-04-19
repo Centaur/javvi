@@ -106,6 +106,12 @@ let DefaultValidators = {
         pred: val => val.length < min,
         message: message || `长度不能小于 ${ min }`
       };
+    },
+    $equalTo(exp, message) {
+      return {
+        pred: val => val !== this.$eval(exp),
+        message: message || `必须与 ${exp} 相同`
+      }
     }
   }
 };
