@@ -1,4 +1,4 @@
-let Validatable = {
+const Validatable = {
   props: {
     validate: {
       type: Array
@@ -6,6 +6,10 @@ let Validatable = {
     validatePath: {
       type: String,
       default: 'model'
+    },
+    eventBus: {
+      type: Object,
+      required: true
     }
   },
   data() {
@@ -14,11 +18,12 @@ let Validatable = {
         valid: true,
         message: ''
       }
-    };
+    }
   },
-  events: {
-    validate(resolve, reject) {
-      let toBeValidate = this.$get(this.validatePath)
+  created() {
+    this.$watch(this.validatePath, (newVal, oldVal) => this.validateResult = {valid: true})
+    this.eventBus.$on('validate', (resolve, reject) => {
+      let toBeValidate = this[this.validatePath]
       let firstInvalidValidator = this.validate.find(validator => validator.pred(toBeValidate));
       if (firstInvalidValidator) {
         this.validateResult = {
@@ -28,41 +33,42 @@ let Validatable = {
       } else {
         this.validateResult = {valid: true};
       }
-      this.$dispatch('validate-result', this.validateResult, resolve, reject);
-    }
-  },
-  created() {
-    this.$watch(this.validatePath, (newVal, oldVal) => this.validateResult = {valid: true})
-    this.$dispatch('register-validation');
+      this.eventBus.$emit('validate-result', this.validateResult, resolve, reject);
+    })
+    this.eventBus.$emit('register-validation')
   },
   beforeDestroy(){
-    this.$dispatch('unregister-validation')
+    this.eventBus.$emit('unregister-validation')
   }
 };
 
-let ValidationContainer = {
+const ValidationContainer = {
   methods: {
     $doValidate() {
       this.validated = 0;
       return new Promise((resolve, reject) => {
-        this.$broadcast('validate', resolve, reject);
+        this.eventBus.$emit('validate', resolve, reject);
       });
+    }
+  },
+  props: {
+    eventBus: {
+      type: Object,
+      required: true
     }
   },
   data() {
     return {
       validationCount: 0,
       validated: 0
-    };
+    }
   },
-  events: {
-    'register-validation': function () {
+  created() {
+    this.eventBus.$on('register-validation', () => {
       this.validationCount += 1;
-    },
-    'unregister-validation': function () {
+    }).$on('unregister-validation', () => {
       this.validationCount -= 1;
-    },
-    'validate-result': function (result, resolve, reject) {
+    }).$on('validate-result', (result, resolve, reject) => {
       if (!result.valid) {
         reject(result.message);
       } else {
@@ -71,11 +77,11 @@ let ValidationContainer = {
           resolve();
         }
       }
-    }
+    })
   }
 };
 
-let DefaultValidators = {
+const DefaultValidators = {
   methods: {
     $require(message) {
       return {
@@ -109,7 +115,7 @@ let DefaultValidators = {
     },
     $equalTo(exp, message) {
       return {
-        pred: val => val !== this.$eval(exp),
+        pred: val => { console.log('val=', val,  ',exp=', exp, ',this=', this, ',this["form_data.new_password"]', this['form_data.new_password']); val !== this[exp]},
         message: message || `必须与 ${exp} 相同`
       }
     }
