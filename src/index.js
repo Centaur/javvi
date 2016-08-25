@@ -1,6 +1,7 @@
-import _get from 'lodash.get'
-import _forEach from 'lodash.foreach'
-import _remove from 'lodash.remove'
+import _get from 'lodash/get'
+import _forEach from 'lodash/forEach'
+import _remove from 'lodash/remove'
+import _bind from 'lodash/bind'
 
 const Validatable = {
   props: {
@@ -21,16 +22,20 @@ const Validatable = {
       }
     }
   },
+  validates(){
+    return this.validate
+  },
   created() {
-    if(!this.validate || this.validate.length === 0) return;
-    this.$watch(this.validatePath, (newVal, oldVal) => this.validateResult = {valid: true})
+    if (!this.validate || this.validate.length === 0) return;
+    this.$watch(this.validatePath, (newVal, oldVal) => {
+      this.validateResult = {valid: true}
+    })
 
     let container = this
-    while(!container.isValidationContainer && container.$parent) {
-      // console.log('this:', this.$options.name, 'current container: ', container.$options.name)
+    while (!container.isValidationContainer && container.$parent) {
       container = container.$parent
     }
-    if(container.isValidationContainer) {
+    if (container.isValidationContainer) {
       this.container = container
     } else {
       console.error('No validation container found in ancestors. There must be one.')
@@ -38,7 +43,8 @@ const Validatable = {
     }
     this.$on('validate', (resolve, reject) => {
       let toBeValidate = _get(this, this.validatePath)
-      let firstInvalidValidator = this.validate.find(validator => validator.pred(toBeValidate));
+      const validates = _bind(this.$options.validates, this)
+      let firstInvalidValidator = validates().find(validator => validator.pred(toBeValidate));
       if (firstInvalidValidator) {
         this.validateResult = {
           valid: false,
@@ -98,9 +104,7 @@ const DefaultValidators = {
   methods: {
     $require(message) {
       return {
-        pred: val => {
-          return val === null || val.length === 0
-        },
+        pred: val => val === null || (typeof val === 'string' && val.length === 0),
         message: message || '必填项'
       };
     },
