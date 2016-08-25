@@ -1,3 +1,7 @@
+import _get from 'lodash.get'
+import _forEach from 'lodash.foreach'
+import _remove from 'lodash.remove'
+
 const Validatable = {
   props: {
     validate: {
@@ -5,15 +9,12 @@ const Validatable = {
     },
     validatePath: {
       type: String,
-      default: 'model'
-    },
-    eventBus: {
-      type: Object,
-      required: true
+      default: 'value'
     }
   },
   data() {
     return {
+      container: null,
       validateResult: {
         valid: true,
         message: ''
@@ -21,9 +22,22 @@ const Validatable = {
     }
   },
   created() {
+    if(!this.validate || this.validate.length === 0) return;
     this.$watch(this.validatePath, (newVal, oldVal) => this.validateResult = {valid: true})
-    this.eventBus.$on('validate', (resolve, reject) => {
-      let toBeValidate = this[this.validatePath]
+
+    let container = this
+    while(!container.isValidationContainer && container.$parent) {
+      // console.log('this:', this.$options.name, 'current container: ', container.$options.name)
+      container = container.$parent
+    }
+    if(container.isValidationContainer) {
+      this.container = container
+    } else {
+      console.error('No validation container found in ancestors. There must be one.')
+      return
+    }
+    this.$on('validate', (resolve, reject) => {
+      let toBeValidate = _get(this, this.validatePath)
       let firstInvalidValidator = this.validate.find(validator => validator.pred(toBeValidate));
       if (firstInvalidValidator) {
         this.validateResult = {
@@ -33,12 +47,13 @@ const Validatable = {
       } else {
         this.validateResult = {valid: true};
       }
-      this.eventBus.$emit('validate-result', this.validateResult, resolve, reject);
+      this.container.$emit('validate-result', this.validateResult, resolve, reject);
     })
-    this.eventBus.$emit('register-validation')
+
+    this.container.$emit('register-validation', this)
   },
   beforeDestroy(){
-    this.eventBus.$emit('unregister-validation')
+    this.container && this.container.$emit('unregister-validation', this)
   }
 };
 
@@ -47,27 +62,25 @@ const ValidationContainer = {
     $doValidate() {
       this.validated = 0;
       return new Promise((resolve, reject) => {
-        this.eventBus.$emit('validate', resolve, reject);
+        _forEach(this.validatables, validatable => validatable.$emit('validate', resolve, reject));
       });
-    }
-  },
-  props: {
-    eventBus: {
-      type: Object,
-      required: true
     }
   },
   data() {
     return {
+      isValidationContainer: true,
+      validatables: [],
       validationCount: 0,
       validated: 0
     }
   },
   created() {
-    this.eventBus.$on('register-validation', () => {
-      this.validationCount += 1;
-    }).$on('unregister-validation', () => {
-      this.validationCount -= 1;
+    this.$on('register-validation', (validatable) => {
+      this.validatables.push(validatable)
+      this.validationCount += 1
+    }).$on('unregister-validation', (validatable) => {
+      _remove(this.validatables, validatable)
+      this.validationCount -= 1
     }).$on('validate-result', (result, resolve, reject) => {
       if (!result.valid) {
         reject(result.message);
@@ -85,7 +98,9 @@ const DefaultValidators = {
   methods: {
     $require(message) {
       return {
-        pred: val => val === null || val.length === 0,
+        pred: val => {
+          return val === null || val.length === 0
+        },
         message: message || '必填项'
       };
     },
@@ -115,7 +130,7 @@ const DefaultValidators = {
     },
     $equalTo(exp, message) {
       return {
-        pred: val => { console.log('val=', val,  ',exp=', exp, ',this=', this, ',this["form_data.new_password"]', this['form_data.new_password']); val !== this[exp]},
+        pred: val => val !== _get(this, exp),
         message: message || `必须与 ${exp} 相同`
       }
     }
